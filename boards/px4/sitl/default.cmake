@@ -21,7 +21,7 @@ px4_add_board(
 		#uavcan
 
 	MODULES
-		attitude_estimator_q
+        attitude_estimator_q
 		camera_feedback
 		commander
 		dataman
@@ -47,6 +47,7 @@ px4_add_board(
 		vmount
 		vtol_att_control
 		wind_estimator
+        awesome # added by thhuang
 
 	SYSTEMCMDS
 		#bl_update
@@ -82,7 +83,7 @@ px4_add_board(
 		px4_simple_app # Tutorial code from https://px4.io/dev/px4_simple_app
 		rover_steering_control # Rover example app
 		segway
-	)
+    )
 
 set(config_sitl_viewer jmavsim CACHE STRING "viewer for sitl")
 set_property(CACHE config_sitl_viewer PROPERTY STRINGS "jmavsim;none")

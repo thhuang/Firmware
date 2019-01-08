@@ -457,6 +457,36 @@ else
 		echo "Addons script: ${FEXTRAS}"
 		sh $FEXTRAS
 	fi
+
+	#
+	# Start the awesome module.
+	#
+	awesome start
+	echo "The Awesome Module!!! by..."
+    echo "                                  THTH"
+    echo "                   THTHTH        THTHTHTH"
+    echo "                    THTHTH     THTHTHTHTHT"
+    echo "                    THTHTHTHTHTHTHTHTHTHTH"
+    echo "                 THTHTHTHTHTHT  THTHTH"
+    echo "                   THTHTH      THTHTH    THTHTHT"
+    echo "                     THTH   THTHTHTHTHTHTHTHTHTHTHT"
+    echo "                  THTHTHTHTHTHTH             THTHTH"
+    echo "          THTHTHTHTHT      THTHTHTHTHTHTHT"
+    echo "        THTHTHTHT      THTHTHTHTHTH    THTHTH"
+    echo "          THT     THTH      THTHT     THTHTHT"
+    echo "                  THTHT   THTHTHTH   THTHTHT"
+    echo "                    THTH   THTHTH   THTHTHT"
+    echo "                    THTH     THTHTHTHTHTHT"
+    echo "                     THTHTHTHTHTHTHTHTHT"
+    echo "                       THTHT         THTH"
+    echo "                      THTH           THTHTHTH"
+    echo "                    THTHTHTH           THTHTHTH"
+    echo "                  THTHTHTHT             THTHTHTH"
+    echo "               THTHTH                    THTHTH"
+    echo "              TH                          THT"
+
+
+
 #
 # End of autostart.
 #

@@ -42,6 +42,7 @@
 #include <uORB/topics/mission_result.h>
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/sensor_combined.h>
 
 
 extern "C" __EXPORT int awesome_main(int argc, char *argv[]);
@@ -86,6 +87,9 @@ class Awesome : public ModuleBase<Awesome>, public ModuleParams {
 	uORB::Subscription<mission_result_s>		  _mission_result_sub{ORB_ID(mission_result)};
 	uORB::Subscription<vehicle_global_position_s> _global_position_sub{ORB_ID(vehicle_global_position)};
 	uORB::Subscription<vehicle_local_position_s>  _local_position_sub{ORB_ID(vehicle_local_position)};
+
+	/* Messages */
+	struct sensor_combined_s sensor_combined;
 };
 
 #endif /* AWESOME_H_ */

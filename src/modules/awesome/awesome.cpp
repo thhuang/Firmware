@@ -209,7 +209,6 @@ void Awesome::run() {
             
             if (fds[0].revents & POLLIN) {
 				/* obtained data for the first file descriptor */
-			    struct sensor_combined_s sensor_combined;
 				/* copy sensors raw data into local buffer */
 			    orb_copy(ORB_ID(sensor_combined), sensor_combined_sub_fd, &sensor_combined);
           
@@ -245,6 +244,7 @@ void Awesome::run() {
 	}
 
 	orb_unsubscribe(sensor_combined_sub_fd);
+	orb_unsubscribe(vehicle_command_sub_fd);
 	orb_unsubscribe(parameter_update_sub_fd);
 }
 
@@ -267,6 +267,10 @@ void Awesome::parameters_update(int parameter_update_sub, bool force)
 void Awesome::laugh()
 {
     PX4_INFO("WaHaHaHa!!!!!");
+	PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
+			 (double)sensor_combined.accelerometer_m_s2[0],
+			 (double)sensor_combined.accelerometer_m_s2[1],
+			 (double)sensor_combined.accelerometer_m_s2[2]);
 }
 
 int awesome_main(int argc, char *argv[])

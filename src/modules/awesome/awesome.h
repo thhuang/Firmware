@@ -37,12 +37,11 @@
 #include <px4_module.h>
 #include <px4_module_params.h>
 
-/* subscriptions */
-#include <uORB/Subscription.hpp>
-#include <uORB/topics/mission_result.h>
-#include <uORB/topics/vehicle_global_position.h>
-#include <uORB/topics/vehicle_local_position.h>
+#include <uORB/uORB.h>
+#include <uORB/topics/parameter_update.h>
 #include <uORB/topics/sensor_combined.h>
+#include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/vehicle_local_position_setpoint.h>
 
 
 extern "C" __EXPORT int awesome_main(int argc, char *argv[]);
@@ -71,25 +70,31 @@ class Awesome : public ModuleBase<Awesome>, public ModuleParams {
 
   private:
 
-	/**
-	 * Check for parameter changes and update them if needed.
-	 * @param parameter_update_sub uorb subscription to parameter_update
-	 * @param force for a parameter update
-	 */
+	// Check for parameter changes and update them if needed.
+	// @param parameter_update_sub uorb subscription to parameter_update
+	// @param force for a parameter update
 	void parameters_update(int parameter_update_sub, bool force = false);
 
 	DEFINE_PARAMETERS(
-		(ParamInt<px4::params::SYS_AUTOSTART>) _sys_autostart,   /**< example parameter */
-		(ParamInt<px4::params::SYS_AUTOCONFIG>) _sys_autoconfig  /**< another parameter */
+		(ParamInt<px4::params::SYS_AUTOSTART>) _sys_autostart,  // < example parameter
+		(ParamInt<px4::params::SYS_AUTOCONFIG>) _sys_autoconfig // < another parameter
 	)
 
-    /* Subscriptions */
-	uORB::Subscription<mission_result_s>		  _mission_result_sub{ORB_ID(mission_result)};
-	uORB::Subscription<vehicle_global_position_s> _global_position_sub{ORB_ID(vehicle_global_position)};
-	uORB::Subscription<vehicle_local_position_s>  _local_position_sub{ORB_ID(vehicle_local_position)};
+	// Messages
+	struct sensor_combined_s    _sensor_combined_msg;
+	struct vehicle_command_s    _vehicle_command_msg;
+	struct vehicle_local_position_setpoint_s  _vehicle_local_position_setpoint_msg;
 
-	/* Messages */
-	struct sensor_combined_s sensor_combined;
+    // Subscriptions
+	int _parameter_update_sub = orb_subscribe(ORB_ID(parameter_update));
+	int _sensor_combined_sub   = orb_subscribe(ORB_ID(sensor_combined));
+	int _vehicle_command_sub   = orb_subscribe(ORB_ID(vehicle_command));
+	int _vehicle_local_position_setpoint_sub = orb_subscribe(ORB_ID(vehicle_local_position_setpoint));
+
+	// Publications
+	//orb_advert_t _vehicle_command_pub = orb_advertise(ORB_ID(vehicle_command), &_vehicle_command_pub_msg);
+	orb_advert_t _vehicle_local_position_setpoint_pub;
+
 };
 
-#endif /* AWESOME_H_ */
+#endif // AWESOME_H_

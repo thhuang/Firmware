@@ -35,13 +35,11 @@
 
 #include <iostream>
 
+#include <drivers/drv_hrt.h>
+
 #include <px4_getopt.h>
 #include <px4_log.h>
 #include <px4_posix.h>
-
-#include <uORB/topics/parameter_update.h>
-#include <uORB/topics/sensor_combined.h>
-#include <uORB/topics/vehicle_command.h>
 
 #include <navigator/navigation.h>
 
@@ -80,12 +78,14 @@ $ awesome start -f -p 42
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 
 	return 0;
+
 }
 
 int Awesome::print_status() {
 
     PX4_INFO("Running");
 	return 0;
+
 }
 
 int Awesome::custom_command(int argc, char *argv[]) {
@@ -102,6 +102,7 @@ int Awesome::custom_command(int argc, char *argv[]) {
 	}
 
 	return print_usage("unknown command");
+
 }
 
 int Awesome::task_spawn(int argc, char *argv[]) {
@@ -132,7 +133,7 @@ Awesome *Awesome::instantiate(int argc, char *argv[]) {
 	int ch;
 	const char *myoptarg = nullptr;
 
-	/* parse CLI arguments */
+	// parse CLI arguments
 	while ((ch = px4_getopt(argc, argv, "p:f", &myoptind, &myoptarg)) != EOF) {
 	
         switch (ch) {
@@ -169,38 +170,34 @@ Awesome::Awesome(int example_param, bool example_flag)
 
 void Awesome::run() {
 
-	/* subscribe to the sensor_combined topic */
-	int sensor_combined_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
-	/* limit the update rate to 5 Hz */
-	orb_set_interval(sensor_combined_sub_fd, 200);
+	// limit the update rate (1/ms)
+	// orb_set_interval(_sensor_combined_sub,   200); // 5 Hz
+	// orb_set_interval(_vehicle_command_sub,   100); // 10 Hz
+	orb_set_interval(_vehicle_local_position_setpoint_sub, 500); // 10 Hz
 
-	/* subscribe to the vehicle_command topic */
-	int vehicle_command_sub_fd = orb_subscribe(ORB_ID(vehicle_command));
-	
-	/* wakeup source(s) */
+	// wakeup source(s)
     px4_pollfd_struct_t fds[] = {
-        {.fd = sensor_combined_sub_fd, .events = POLLIN},  // BROKEN if we are using the L3GS20
-        {.fd = vehicle_command_sub_fd, .events = POLLIN},
-		/* there could be more file descriptors here, in the form like:
-		 * {.fd = other_sub_fd, .events = POLLIN},
-		 */
+        {.fd = _sensor_combined_sub,   .events = POLLIN}, // BROKEN if we are using the L3GS20
+        {.fd = _vehicle_command_sub,   .events = POLLIN},
+		{.fd = _vehicle_local_position_setpoint_sub, .events = POLLIN},
+		// there could be more file descriptors here, in the form like:
+		// {.fd = other_sub_fd, .events = POLLIN},
     };
 
-	/* initialize parameters */
-	int parameter_update_sub_fd = orb_subscribe(ORB_ID(parameter_update));
-	parameters_update(parameter_update_sub_fd, true);
+	// initialize parameters
+	parameters_update(_parameter_update_sub, true);
 
     while (!should_exit()) {
 		
-        /* wait for up to 1000 ms for data (1 Hz) */
+        // wait for up to 1000 ms for data (1 Hz)
 		int poll_ret = px4_poll(fds, (sizeof(fds) / sizeof(fds[0])), 1000);
 
 		if (poll_ret == 0) {
-			/* this means none of our providers is giving us data */
+			// this means none of our providers is giving us data
 			PX4_ERR("Got no data within a second");
 
 		} else if (poll_ret < 0) {
-			/* this is undesirable but not much we can do - might want to flag unhappy status */
+			// this is undesirable but not much we can do - might want to flag unhappy status
 			PX4_ERR("poll error %d, %d", poll_ret, errno);
 			usleep(50000);
 			continue;
@@ -208,72 +205,132 @@ void Awesome::run() {
 		} else {
             
             if (fds[0].revents & POLLIN) {
-				/* obtained data for the first file descriptor */
-				/* copy sensors raw data into local buffer */
-			    orb_copy(ORB_ID(sensor_combined), sensor_combined_sub_fd, &sensor_combined);
-          
-                /* print data */
-                /*
-                 * PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
-				 * 	     (double)sensor_combined.accelerometer_m_s2[0],
-				 * 	     (double)sensor_combined.accelerometer_m_s2[1],
-				 * 	     (double)sensor_combined.accelerometer_m_s2[2]);
-                 */
-            } // if (fds[0].revents & POLLIN)
+				// obtained data for the first file descriptor
+				// copy sensors raw data into local buffer
+			    // orb_copy(ORB_ID(sensor_combined), _sensor_combined_sub, &_sensor_combined_msg);
+
+			} // if (fds[0].revents & POLLIN)
 			
             if (fds[1].revents & POLLIN) {
-                /* obtained data for the second file descriptor */
-                struct vehicle_command_s vehicle_command;
-                orb_copy(ORB_ID(vehicle_command), vehicle_command_sub_fd, &vehicle_command);
+                // obtained data for the second file descriptor
+				// copy vehicle command into local buffer
+                orb_copy(ORB_ID(vehicle_command), _vehicle_command_sub, &_vehicle_command_msg);
 
-                /* print data */
-                PX4_INFO("Vehicle Command: %d", (unsigned)vehicle_command.command);
-                PX4_INFO("Parameter 1:\t%8.4f", (double)vehicle_command.param1);
-                PX4_INFO("Parameter 2:\t%8.4f", (double)vehicle_command.param2);
-                PX4_INFO("Parameter 3:\t%8.4f", (double)vehicle_command.param3);
-                PX4_INFO("Parameter 4:\t%8.4f", (double)vehicle_command.param4);
-                PX4_INFO("Parameter 5:\t%8.4f", (double)vehicle_command.param5);
-                PX4_INFO("Parameter 6:\t%8.4f", (double)vehicle_command.param6);
-                PX4_INFO("Parameter 7:\t%8.4f", (double)vehicle_command.param7);
+                // print data
+                PX4_INFO("Vehicle Command: %d",  (unsigned)_vehicle_command_msg.command);
+				PX4_INFO("Target System: %d",    (unsigned)_vehicle_command_msg.target_system);
+				PX4_INFO("Target Component: %d", (unsigned)_vehicle_command_msg.target_component);
+				PX4_INFO("Source System: %d",    (unsigned)_vehicle_command_msg.source_system);
+				PX4_INFO("Source Component: %d", (unsigned)_vehicle_command_msg.target_component);
+				PX4_INFO("Confirmation: %d",     (unsigned)_vehicle_command_msg.confirmation);
+				PX4_INFO("From External: %d",        (bool)_vehicle_command_msg.from_external);
+                PX4_INFO("Parameter 1:\t%8.4f",    (double)_vehicle_command_msg.param1);
+                PX4_INFO("Parameter 2:\t%8.4f",    (double)_vehicle_command_msg.param2);
+                PX4_INFO("Parameter 3:\t%8.4f",    (double)_vehicle_command_msg.param3);
+                PX4_INFO("Parameter 4:\t%8.4f",    (double)_vehicle_command_msg.param4);
+                PX4_INFO("Parameter 5:\t%8.4f",    (double)_vehicle_command_msg.param5);
+                PX4_INFO("Parameter 6:\t%8.4f",    (double)_vehicle_command_msg.param6);
+                PX4_INFO("Parameter 7:\t%8.4f",    (double)_vehicle_command_msg.param7);
+				PX4_INFO("");
 
             } // if (fds[1].revents & POLLIN)
-        
+
+            if (fds[2].revents & POLLIN) {
+				// obtained data for the third file descriptor
+				// copy position setpoint into local buffer
+			    orb_copy(ORB_ID(vehicle_local_position_setpoint), _vehicle_local_position_setpoint_sub, &_vehicle_local_position_setpoint_msg);
+
+				// print data
+				PX4_INFO("x:        \t%8.4f", (double)_vehicle_local_position_setpoint_msg.x);
+				PX4_INFO("y:        \t%8.4f", (double)_vehicle_local_position_setpoint_msg.y);
+				PX4_INFO("z:        \t%8.4f", (double)_vehicle_local_position_setpoint_msg.z);
+				PX4_INFO("yaw:      \t%8.4f", (double)_vehicle_local_position_setpoint_msg.yaw);
+				PX4_INFO("yawspeed: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.yawspeed);
+				PX4_INFO("vx:       \t%8.4f", (double)_vehicle_local_position_setpoint_msg.vx);
+				PX4_INFO("vy:       \t%8.4f", (double)_vehicle_local_position_setpoint_msg.vy);
+				PX4_INFO("vz:       \t%8.4f", (double)_vehicle_local_position_setpoint_msg.vz);
+				PX4_INFO("acc_x:    \t%8.4f", (double)_vehicle_local_position_setpoint_msg.acc_x);
+				PX4_INFO("acc_y:    \t%8.4f", (double)_vehicle_local_position_setpoint_msg.acc_y);
+				PX4_INFO("acc_z:    \t%8.4f", (double)_vehicle_local_position_setpoint_msg.acc_z);
+				PX4_INFO("jerk_x:   \t%8.4f", (double)_vehicle_local_position_setpoint_msg.jerk_x);
+				PX4_INFO("jerk_y:   \t%8.4f", (double)_vehicle_local_position_setpoint_msg.jerk_y);
+				PX4_INFO("jerk_z:   \t%8.4f", (double)_vehicle_local_position_setpoint_msg.jerk_z);
+				PX4_INFO("thrust N: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.thrust[0]);
+				PX4_INFO("thrust E: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.thrust[1]);
+				PX4_INFO("thrust D: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.thrust[2]);
+				PX4_INFO("");
+            
+			} // if (fds[0].revents & POLLIN)
+
         } // if (poll_ret != 0)
 
-		parameters_update(parameter_update_sub_fd);
+		parameters_update(_parameter_update_sub);
 	}
 
-	orb_unsubscribe(sensor_combined_sub_fd);
-	orb_unsubscribe(vehicle_command_sub_fd);
-	orb_unsubscribe(parameter_update_sub_fd);
+	orb_unsubscribe(_sensor_combined_sub);
+	orb_unsubscribe(_vehicle_command_sub);
+	orb_unsubscribe(_parameter_update_sub);
+
 }
 
-void Awesome::parameters_update(int parameter_update_sub, bool force)
-{
+void Awesome::parameters_update(int parameter_update_sub, bool force) {
+
 	bool updated;
-	struct parameter_update_s param_upd;
+	struct parameter_update_s parameter_update_msg;
 
 	orb_check(parameter_update_sub, &updated);
 
 	if (updated) {
-		orb_copy(ORB_ID(parameter_update), parameter_update_sub, &param_upd);
+		orb_copy(ORB_ID(parameter_update), parameter_update_sub, &parameter_update_msg);
 	}
 
 	if (force || updated) {
 		updateParams();
 	}
+
 }
 
-void Awesome::laugh()
-{
+void Awesome::laugh() {
+
     PX4_INFO("WaHaHaHa!!!!!");
 	PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
-			 (double)sensor_combined.accelerometer_m_s2[0],
-			 (double)sensor_combined.accelerometer_m_s2[1],
-			 (double)sensor_combined.accelerometer_m_s2[2]);
+			 (double)_sensor_combined_msg.accelerometer_m_s2[0],
+			 (double)_sensor_combined_msg.accelerometer_m_s2[1],
+			 (double)_sensor_combined_msg.accelerometer_m_s2[2]);
+
+	// TODO: try send_vehicle_command()
+	// https://github.com/thhuang/Firmware/blob/XD/src/modules/commander/Commander.cpp#L268-L286
+	// TODO: try MulticopterPositionControl
+	// https://github.com/thhuang/Firmware/blob/XD/src/modules/mc_pos_control/mc_pos_control_main.cpp
+	// https://github.com/thhuang/Firmware/blob/XD/src/modules/mc_pos_control/mc_pos_control_main.cpp#L772-L787
+	// TODO: try execute_avoidance_waypoint()
+	// https://github.com/thhuang/Firmware/blob/XD/src/modules/mc_pos_control/mc_pos_control_main.cpp#L1175-L1190
+
+	// FIXME: why not working...
+	_vehicle_local_position_setpoint_msg.timestamp = hrt_absolute_time();
+	_vehicle_local_position_setpoint_msg.x = 3.0;
+	_vehicle_local_position_setpoint_msg.y = 0.0;
+	_vehicle_local_position_setpoint_msg.z = -5.0;
+	orb_publish(ORB_ID(vehicle_local_position_setpoint), _vehicle_local_position_setpoint_pub, &_vehicle_local_position_setpoint_msg);
+
+	// _vehicle_command_pub_msg.command = 192;
+	// _vehicle_command_pub_msg.target_system = 1;
+	// _vehicle_command_pub_msg.target_component = 1;
+	// _vehicle_command_pub_msg.source_system = 255;
+	// _vehicle_command_pub_msg.source_component = 1;
+	// _vehicle_command_pub_msg.confirmation = 0;
+	// _vehicle_command_pub_msg.from_external = true;
+	// _vehicle_command_pub_msg.param1 =   -1.0000;
+	// _vehicle_command_pub_msg.param2 =    1.0000;
+	// _vehicle_command_pub_msg.param3 =    0.0000;
+	// _vehicle_command_pub_msg.param4 =    0.0000;
+	// _vehicle_command_pub_msg.param5 =   47.3973;
+	// _vehicle_command_pub_msg.param6 =    8.5440;
+	// _vehicle_command_pub_msg.param7 =  489.7320;
+	// orb_publish(ORB_ID(vehicle_command), _vehicle_command_pub, &_vehicle_command_pub_msg);
+
 }
 
-int awesome_main(int argc, char *argv[])
-{
+int awesome_main(int argc, char *argv[]) {
 	return Awesome::main(argc, argv);
 }

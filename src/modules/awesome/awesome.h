@@ -34,6 +34,8 @@
 #ifndef AWESOME_H_
 #define AWESOME_H_
 
+#include <px4.h>
+#include <px4_app.h>
 #include <px4_module.h>
 #include <px4_module_params.h>
 
@@ -42,6 +44,7 @@
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
+#include <uORB/topics/position_setpoint_triplet.h>
 
 
 extern "C" __EXPORT int awesome_main(int argc, char *argv[]);
@@ -84,16 +87,22 @@ class Awesome : public ModuleBase<Awesome>, public ModuleParams {
 	struct sensor_combined_s    _sensor_combined_msg;
 	struct vehicle_command_s    _vehicle_command_msg;
 	struct vehicle_local_position_setpoint_s  _vehicle_local_position_setpoint_msg;
+	struct position_setpoint_triplet_s  _position_setpoint_triplet_msg;
 
     // Subscriptions
 	int _parameter_update_sub = orb_subscribe(ORB_ID(parameter_update));
 	int _sensor_combined_sub   = orb_subscribe(ORB_ID(sensor_combined));
 	int _vehicle_command_sub   = orb_subscribe(ORB_ID(vehicle_command));
 	int _vehicle_local_position_setpoint_sub = orb_subscribe(ORB_ID(vehicle_local_position_setpoint));
+	int _position_setpoint_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
 
 	// Publications
-	//orb_advert_t _vehicle_command_pub = orb_advertise(ORB_ID(vehicle_command), &_vehicle_command_pub_msg);
-	orb_advert_t _vehicle_local_position_setpoint_pub;
+	// orb_advert_t _vehicle_command_pub = orb_advertise(ORB_ID(vehicle_command), &_vehicle_command_pub_msg);
+	// orb_advert_t _position_setpoint_pub = orb_advertise(ORB_ID(position_setpoint), &_position_setpoint_msg);;
+	orb_advert_t _position_setpoint_triplet_pub = orb_advertise(ORB_ID(position_setpoint_triplet), &_position_setpoint_triplet_msg);;
+
+	// Rate
+	px4::Rate _loop_rate;
 
 };
 

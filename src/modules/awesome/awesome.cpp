@@ -166,20 +166,21 @@ Awesome *Awesome::instantiate(int argc, char *argv[]) {
 }
 
 Awesome::Awesome(int example_param, bool example_flag)
-	: ModuleParams(nullptr) {}
+	: ModuleParams(nullptr), _loop_rate(10) {}
 
 void Awesome::run() {
 
-	// limit the update rate (1/ms)
+	// limit the update period (ms)
 	// orb_set_interval(_sensor_combined_sub,   200); // 5 Hz
 	// orb_set_interval(_vehicle_command_sub,   100); // 10 Hz
-	orb_set_interval(_vehicle_local_position_setpoint_sub, 500); // 10 Hz
+	orb_set_interval(_vehicle_local_position_setpoint_sub, 500); // 2 Hz
 
 	// wakeup source(s)
     px4_pollfd_struct_t fds[] = {
-        {.fd = _sensor_combined_sub,   .events = POLLIN}, // BROKEN if we are using the L3GS20
-        {.fd = _vehicle_command_sub,   .events = POLLIN},
+        {.fd = _sensor_combined_sub,   				 .events = POLLIN}, // BROKEN if we are using the L3GS20
+        {.fd = _vehicle_command_sub,   				 .events = POLLIN},
 		{.fd = _vehicle_local_position_setpoint_sub, .events = POLLIN},
+		{.fd = _position_setpoint_triplet_sub, 		 .events = POLLIN},
 		// there could be more file descriptors here, in the form like:
 		// {.fd = other_sub_fd, .events = POLLIN},
     };
@@ -217,49 +218,93 @@ void Awesome::run() {
                 orb_copy(ORB_ID(vehicle_command), _vehicle_command_sub, &_vehicle_command_msg);
 
                 // print data
-                PX4_INFO("Vehicle Command: %d",  (unsigned)_vehicle_command_msg.command);
-				PX4_INFO("Target System: %d",    (unsigned)_vehicle_command_msg.target_system);
-				PX4_INFO("Target Component: %d", (unsigned)_vehicle_command_msg.target_component);
-				PX4_INFO("Source System: %d",    (unsigned)_vehicle_command_msg.source_system);
-				PX4_INFO("Source Component: %d", (unsigned)_vehicle_command_msg.target_component);
-				PX4_INFO("Confirmation: %d",     (unsigned)_vehicle_command_msg.confirmation);
-				PX4_INFO("From External: %d",        (bool)_vehicle_command_msg.from_external);
-                PX4_INFO("Parameter 1:\t%8.4f",    (double)_vehicle_command_msg.param1);
-                PX4_INFO("Parameter 2:\t%8.4f",    (double)_vehicle_command_msg.param2);
-                PX4_INFO("Parameter 3:\t%8.4f",    (double)_vehicle_command_msg.param3);
-                PX4_INFO("Parameter 4:\t%8.4f",    (double)_vehicle_command_msg.param4);
-                PX4_INFO("Parameter 5:\t%8.4f",    (double)_vehicle_command_msg.param5);
-                PX4_INFO("Parameter 6:\t%8.4f",    (double)_vehicle_command_msg.param6);
-                PX4_INFO("Parameter 7:\t%8.4f",    (double)_vehicle_command_msg.param7);
-				PX4_INFO("");
+				// PX4_INFO("vehicle_command");				
+                // PX4_INFO("Vehicle Command: %d",  (unsigned)_vehicle_command_msg.command);
+				// PX4_INFO("Target System: %d",    (unsigned)_vehicle_command_msg.target_system);
+				// PX4_INFO("Target Component: %d", (unsigned)_vehicle_command_msg.target_component);
+				// PX4_INFO("Source System: %d",    (unsigned)_vehicle_command_msg.source_system);
+				// PX4_INFO("Source Component: %d", (unsigned)_vehicle_command_msg.target_component);
+				// PX4_INFO("Confirmation: %d",     (unsigned)_vehicle_command_msg.confirmation);
+				// PX4_INFO("From External: %d",        (bool)_vehicle_command_msg.from_external);
+                // PX4_INFO("Parameter 1:\t%8.4f",    (double)_vehicle_command_msg.param1);
+                // PX4_INFO("Parameter 2:\t%8.4f",    (double)_vehicle_command_msg.param2);
+                // PX4_INFO("Parameter 3:\t%8.4f",    (double)_vehicle_command_msg.param3);
+                // PX4_INFO("Parameter 4:\t%8.4f",    (double)_vehicle_command_msg.param4);
+                // PX4_INFO("Parameter 5:\t%8.4f",    (double)_vehicle_command_msg.param5);
+                // PX4_INFO("Parameter 6:\t%8.4f",    (double)_vehicle_command_msg.param6);
+                // PX4_INFO("Parameter 7:\t%8.4f",    (double)_vehicle_command_msg.param7);
+
 
             } // if (fds[1].revents & POLLIN)
 
             if (fds[2].revents & POLLIN) {
 				// obtained data for the third file descriptor
-				// copy position setpoint into local buffer
+				// copy vehicle local position setpoint into local buffer
 			    orb_copy(ORB_ID(vehicle_local_position_setpoint), _vehicle_local_position_setpoint_sub, &_vehicle_local_position_setpoint_msg);
 
 				// print data
-				PX4_INFO("x:        \t%8.4f", (double)_vehicle_local_position_setpoint_msg.x);
-				PX4_INFO("y:        \t%8.4f", (double)_vehicle_local_position_setpoint_msg.y);
-				PX4_INFO("z:        \t%8.4f", (double)_vehicle_local_position_setpoint_msg.z);
-				PX4_INFO("yaw:      \t%8.4f", (double)_vehicle_local_position_setpoint_msg.yaw);
-				PX4_INFO("yawspeed: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.yawspeed);
-				PX4_INFO("vx:       \t%8.4f", (double)_vehicle_local_position_setpoint_msg.vx);
-				PX4_INFO("vy:       \t%8.4f", (double)_vehicle_local_position_setpoint_msg.vy);
-				PX4_INFO("vz:       \t%8.4f", (double)_vehicle_local_position_setpoint_msg.vz);
-				PX4_INFO("acc_x:    \t%8.4f", (double)_vehicle_local_position_setpoint_msg.acc_x);
-				PX4_INFO("acc_y:    \t%8.4f", (double)_vehicle_local_position_setpoint_msg.acc_y);
-				PX4_INFO("acc_z:    \t%8.4f", (double)_vehicle_local_position_setpoint_msg.acc_z);
-				PX4_INFO("jerk_x:   \t%8.4f", (double)_vehicle_local_position_setpoint_msg.jerk_x);
-				PX4_INFO("jerk_y:   \t%8.4f", (double)_vehicle_local_position_setpoint_msg.jerk_y);
-				PX4_INFO("jerk_z:   \t%8.4f", (double)_vehicle_local_position_setpoint_msg.jerk_z);
-				PX4_INFO("thrust N: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.thrust[0]);
-				PX4_INFO("thrust E: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.thrust[1]);
-				PX4_INFO("thrust D: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.thrust[2]);
-				PX4_INFO("");
+				// PX4_INFO("vehicle_local_position_setpoint");
+				// PX4_INFO("x:        \t%8.4f", (double)_vehicle_local_position_setpoint_msg.x);
+				// PX4_INFO("y:        \t%8.4f", (double)_vehicle_local_position_setpoint_msg.y);
+				// PX4_INFO("z:        \t%8.4f", (double)_vehicle_local_position_setpoint_msg.z);
+				// PX4_INFO("yaw:      \t%8.4f", (double)_vehicle_local_position_setpoint_msg.yaw);
+				// PX4_INFO("yawspeed: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.yawspeed);
+				// PX4_INFO("vx:       \t%8.4f", (double)_vehicle_local_position_setpoint_msg.vx);
+				// PX4_INFO("vy:       \t%8.4f", (double)_vehicle_local_position_setpoint_msg.vy);
+				// PX4_INFO("vz:       \t%8.4f", (double)_vehicle_local_position_setpoint_msg.vz);
+				// PX4_INFO("acc_x:    \t%8.4f", (double)_vehicle_local_position_setpoint_msg.acc_x);
+				// PX4_INFO("acc_y:    \t%8.4f", (double)_vehicle_local_position_setpoint_msg.acc_y);
+				// PX4_INFO("acc_z:    \t%8.4f", (double)_vehicle_local_position_setpoint_msg.acc_z);
+				// PX4_INFO("jerk_x:   \t%8.4f", (double)_vehicle_local_position_setpoint_msg.jerk_x);
+				// PX4_INFO("jerk_y:   \t%8.4f", (double)_vehicle_local_position_setpoint_msg.jerk_y);
+				// PX4_INFO("jerk_z:   \t%8.4f", (double)_vehicle_local_position_setpoint_msg.jerk_z);
+				// PX4_INFO("thrust N: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.thrust[0]);
+				// PX4_INFO("thrust E: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.thrust[1]);
+				// PX4_INFO("thrust D: \t%8.4f", (double)_vehicle_local_position_setpoint_msg.thrust[2]);
             
+			} // if (fds[0].revents & POLLIN)
+
+            if (fds[3].revents & POLLIN) {
+				// obtained data for the third file descriptor
+				// copy position setpoint triplet into local buffer
+			    orb_copy(ORB_ID(position_setpoint_triplet), _position_setpoint_triplet_sub, &_position_setpoint_triplet_msg);
+
+				// print data
+				PX4_INFO("position_setpoint_triplet");
+				PX4_INFO("previous.valid: \t%d", (bool)_position_setpoint_triplet_msg.previous.valid);
+				PX4_INFO("current.valid:  \t%d", (bool)_position_setpoint_triplet_msg.current.valid);
+				PX4_INFO("next.valid:     \t%d", (bool)_position_setpoint_triplet_msg.next.valid);				
+				PX4_INFO("previous.type: \t%d", (unsigned)_position_setpoint_triplet_msg.previous.type);
+				PX4_INFO("current.type:  \t%d", (unsigned)_position_setpoint_triplet_msg.current.type);
+				PX4_INFO("next.type:     \t%d", (unsigned)_position_setpoint_triplet_msg.next.type);
+				PX4_INFO("previous.position_valid: \t%d", (bool)_position_setpoint_triplet_msg.previous.position_valid);
+				PX4_INFO("current.position_valid:  \t%d", (bool)_position_setpoint_triplet_msg.current.position_valid);
+				PX4_INFO("next.position_valid:     \t%d", (bool)_position_setpoint_triplet_msg.next.position_valid);
+				PX4_INFO("previous.velocity_valid: \t%d", (bool)_position_setpoint_triplet_msg.previous.velocity_valid);
+				PX4_INFO("current.velocity_valid:  \t%d", (bool)_position_setpoint_triplet_msg.current.velocity_valid);
+				PX4_INFO("next.velocity_valid:     \t%d", (bool)_position_setpoint_triplet_msg.next.velocity_valid);
+				PX4_INFO("previous.x: \t%8.4f", (double)_position_setpoint_triplet_msg.previous.x);
+				PX4_INFO("current.x:  \t%8.4f", (double)_position_setpoint_triplet_msg.current.x);
+				PX4_INFO("next.x:     \t%8.4f", (double)_position_setpoint_triplet_msg.next.x);				
+				PX4_INFO("previous.y: \t%8.4f", (double)_position_setpoint_triplet_msg.previous.y);
+				PX4_INFO("current.y:  \t%8.4f", (double)_position_setpoint_triplet_msg.current.y);
+				PX4_INFO("next.y:     \t%8.4f", (double)_position_setpoint_triplet_msg.next.y);	
+				PX4_INFO("previous.z: \t%8.4f", (double)_position_setpoint_triplet_msg.previous.z);
+				PX4_INFO("current.z:  \t%8.4f", (double)_position_setpoint_triplet_msg.current.z);
+				PX4_INFO("next.z:     \t%8.4f", (double)_position_setpoint_triplet_msg.next.z);
+				PX4_INFO("previous.alt_valid: \t%d", (bool)_position_setpoint_triplet_msg.previous.alt_valid);
+				PX4_INFO("current.alt_valid:  \t%d", (bool)_position_setpoint_triplet_msg.current.alt_valid);
+				PX4_INFO("next.alt_valid:     \t%d", (bool)_position_setpoint_triplet_msg.next.alt_valid);
+				PX4_INFO("previous.alt: \t%8.4f", (double)_position_setpoint_triplet_msg.previous.alt);
+				PX4_INFO("current.alt:  \t%8.4f", (double)_position_setpoint_triplet_msg.current.alt);
+				PX4_INFO("next.alt:     \t%8.4f", (double)_position_setpoint_triplet_msg.next.alt);	
+				PX4_INFO("previous.lat: \t%8.4f", (double)_position_setpoint_triplet_msg.previous.lat);
+				PX4_INFO("current.lat:  \t%8.4f", (double)_position_setpoint_triplet_msg.current.lat);
+				PX4_INFO("next.lat:     \t%8.4f", (double)_position_setpoint_triplet_msg.next.lat);	
+				PX4_INFO("previous.lon: \t%8.4f", (double)_position_setpoint_triplet_msg.previous.lon);
+				PX4_INFO("current.lon:  \t%8.4f", (double)_position_setpoint_triplet_msg.current.lon);
+				PX4_INFO("next.lon:     \t%8.4f", (double)_position_setpoint_triplet_msg.next.lon);	
+
 			} // if (fds[0].revents & POLLIN)
 
         } // if (poll_ret != 0)
@@ -292,7 +337,7 @@ void Awesome::parameters_update(int parameter_update_sub, bool force) {
 
 void Awesome::laugh() {
 
-    PX4_INFO("WaHaHaHa!!!!!");
+	PX4_INFO("WaHaHaHa!!!!!");
 	PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
 			 (double)_sensor_combined_msg.accelerometer_m_s2[0],
 			 (double)_sensor_combined_msg.accelerometer_m_s2[1],
@@ -306,12 +351,12 @@ void Awesome::laugh() {
 	// TODO: try execute_avoidance_waypoint()
 	// https://github.com/thhuang/Firmware/blob/XD/src/modules/mc_pos_control/mc_pos_control_main.cpp#L1175-L1190
 
-	// FIXME: why not working...
-	_vehicle_local_position_setpoint_msg.timestamp = hrt_absolute_time();
-	_vehicle_local_position_setpoint_msg.x = 3.0;
-	_vehicle_local_position_setpoint_msg.y = 0.0;
-	_vehicle_local_position_setpoint_msg.z = -5.0;
-	orb_publish(ORB_ID(vehicle_local_position_setpoint), _vehicle_local_position_setpoint_pub, &_vehicle_local_position_setpoint_msg);
+	struct position_setpoint_triplet_s msg = _position_setpoint_triplet_msg;
+	msg.current.type = 1;
+	msg.current.yaw_valid = false;
+	msg.current.yawspeed_valid = false;
+	msg.current.vx = 5;
+	orb_publish(ORB_ID(position_setpoint_triplet), _position_setpoint_triplet_pub, &msg);
 
 	// _vehicle_command_pub_msg.command = 192;
 	// _vehicle_command_pub_msg.target_system = 1;
